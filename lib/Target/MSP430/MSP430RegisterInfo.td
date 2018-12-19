@@ -2,7 +2,7 @@
 //
 //                     The LLVM Compiler Infrastructure
 //
-// This file is distributed under the University of Illinois Open Source 
+// This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
@@ -11,46 +11,51 @@
 //  Declarations that describe the MSP430 register file
 //===----------------------------------------------------------------------===//
 
-class MSP430Reg<bits<4> num, string n> : Register<n> {
+class MSP430Reg<bits<4> num, string n, list<string> alt = []> : Register<n> {
   field bits<4> Num = num;
   let Namespace = "MSP430";
+  let HWEncoding{3-0} = num;
+  let AltNames = alt;
 }
 
-class MSP430RegWithSubregs<bits<4> num, string n, list<Register> subregs> 
+class MSP430RegWithSubregs<bits<4> num, string n, list<Register> subregs,
+                           list<string> alt = []>
   : RegisterWithSubRegs<n, subregs> {
   field bits<4> Num = num;
   let Namespace = "MSP430";
+  let HWEncoding{3-0} = num;
+  let AltNames = alt;
 }
 
 //===----------------------------------------------------------------------===//
 //  Registers
 //===----------------------------------------------------------------------===//
 
-def PCB  : MSP430Reg<0,  "r0">;
-def SPB  : MSP430Reg<1,  "r1">;
-def SRB  : MSP430Reg<2,  "r2">;
-def CGB  : MSP430Reg<3,  "r3">;
-def FPB  : MSP430Reg<4,  "r4">;
-def R5B  : MSP430Reg<5,  "r5">;
-def R6B  : MSP430Reg<6,  "r6">;
-def R7B  : MSP430Reg<7,  "r7">;
-def R8B  : MSP430Reg<8,  "r8">;
-def R9B  : MSP430Reg<9,  "r9">;
-def R10B : MSP430Reg<10, "r10">;
-def R11B : MSP430Reg<11, "r11">;
-def R12B : MSP430Reg<12, "r12">;
-def R13B : MSP430Reg<13, "r13">;
-def R14B : MSP430Reg<14, "r14">;
-def R15B : MSP430Reg<15, "r15">;
+def PCB  : MSP430Reg<0,  "r0b", ["pc"]>;
+def SPB  : MSP430Reg<1,  "r1b", ["sp"]>;
+def SRB  : MSP430Reg<2,  "r2b", ["sr"]>;
+def CGB  : MSP430Reg<3,  "r3b", ["cg"]>;
+def FPB  : MSP430Reg<4,  "r4b", ["fp"]>;
+def R5B  : MSP430Reg<5,  "r5b">;
+def R6B  : MSP430Reg<6,  "r6b">;
+def R7B  : MSP430Reg<7,  "r7b">;
+def R8B  : MSP430Reg<8,  "r8b">;
+def R9B  : MSP430Reg<9,  "r9b">;
+def R10B : MSP430Reg<10, "r10b">;
+def R11B : MSP430Reg<11, "r11b">;
+def R12B : MSP430Reg<12, "r12b">;
+def R13B : MSP430Reg<13, "r13b">;
+def R14B : MSP430Reg<14, "r14b">;
+def R15B : MSP430Reg<15, "r15b">;
 
 def subreg_8bit : SubRegIndex<8> { let Namespace = "MSP430"; }
 
 let SubRegIndices = [subreg_8bit] in {
-def PC  : MSP430RegWithSubregs<0,  "r0",  [PCB]>;
-def SP  : MSP430RegWithSubregs<1,  "r1",  [SPB]>;
-def SR  : MSP430RegWithSubregs<2,  "r2",  [SRB]>;
-def CG  : MSP430RegWithSubregs<3,  "r3",  [CGB]>;
-def FP  : MSP430RegWithSubregs<4,  "r4",  [FPB]>;
+def PC  : MSP430RegWithSubregs<0,  "r0",  [PCB], ["pc"]>;
+def SP  : MSP430RegWithSubregs<1,  "r1",  [SPB], ["sp"]>;
+def SR  : MSP430RegWithSubregs<2,  "r2",  [SRB], ["sr"]>;
+def CG  : MSP430RegWithSubregs<3,  "r3",  [CGB], ["cg"]>;
+def FP  : MSP430RegWithSubregs<4,  "r4",  [FPB], ["fp"]>;
 def R5  : MSP430RegWithSubregs<5,  "r5",  [R5B]>;
 def R6  : MSP430RegWithSubregs<6,  "r6",  [R6B]>;
 def R7  : MSP430RegWithSubregs<7,  "r7",  [R7B]>;
