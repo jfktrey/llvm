@@ -535,51 +535,107 @@ multiclass Arith<bits<4> opcode, string asmstring, SDNode node,
   }
 }
 
-// bic does not modify condition codes
-def BIC8rr :  I8rr<0x0,
-                   (outs GR8:$dst), (ins GR8:$src, GR8:$src2),
-                   "bic.b\t{$src2, $dst}",
-                   [(set GR8:$dst, (and GR8:$src, (not GR8:$src2)))]>;
-def BIC16rr : I16rr<0x0,
-                    (outs GR16:$dst), (ins GR16:$src, GR16:$src2),
-                    "bic.w\t{$src2, $dst}",
-                    [(set GR16:$dst, (and GR16:$src, (not GR16:$src2)))]>;
-
-def BIC8rm :  I8rm<0x0,
-                   (outs GR8:$dst), (ins GR8:$src, memsrc:$src2),
-                   "bic.b\t{$src2, $dst}",
-                    [(set GR8:$dst, (and GR8:$src, (not (i8 (load addr:$src2)))))]>;
-def BIC16rm : I16rm<0x0,
-                    (outs GR16:$dst), (ins GR16:$src, memsrc:$src2),
-                    "bic.w\t{$src2, $dst}",
-                    [(set GR16:$dst, (and GR16:$src, (not (i16 (load addr:$src2)))))]>;
-
-let Constraints = "" in {
-def BIC8mr :  I8mr<0x0,
-                   (outs), (ins memdst:$dst, GR8:$src),
-                   "bic.b\t{$src, $dst}",
-                   [(store (and (load addr:$dst), (not GR8:$src)), addr:$dst)]>;
-def BIC16mr : I16mr<0x0,
-                    (outs), (ins memdst:$dst, GR16:$src),
-                    "bic.w\t{$src, $dst}",
-                    [(store (and (load addr:$dst), (not GR16:$src)), addr:$dst)]>;
-
-def BIC8mm :  I8mm<0x0,
-                   (outs), (ins memdst:$dst, memsrc:$src),
-                   "bic.b\t{$src, $dst}",
-                   [(store (and (load addr:$dst),
-                                (not (i8 (load addr:$src)))), addr:$dst)]>;
-def BIC16mm : I16mm<0x0,
-                    (outs), (ins memdst:$dst, memsrc:$src),
-                    "bic.w\t{$src, $dst}",
-                    [(store (and (load addr:$dst),
-                                 (not (i16 (load addr:$src)))), addr:$dst)]>;
+multiclass Arith2<bits<4> opcode, string asmstring, PatFrag node,
+                 bit commutes, list<Register> uses> {
+  let Defs = [SR], Uses = uses in {
+  let Constraints = "$src2 = $rd" in {
+  let isCommutable = commutes in {
+  def 8rr : I8rr<opcode, (outs GR8:$rd), (ins GR8:$src2, GR8:$rs),
+                 !strconcat(asmstring, ".b\t$rs, $rd"),
+                 [(set GR8:$rd, (node GR8:$src2, GR8:$rs)),
+                  (implicit SR)]>;
+  def 16rr : I16rr<opcode, (outs GR16:$rd), (ins GR16:$src2, GR16:$rs),
+                   !strconcat(asmstring, "\t$rs, $rd"),
+                   [(set GR16:$rd, (node GR16:$src2, GR16:$rs)),
+                    (implicit SR)]>;
+  }
+  def 8rm : I8rm<opcode, (outs GR8:$rd), (ins GR8:$src2, memsrc:$src),
+                 !strconcat(asmstring, ".b\t$src, $rd"),
+                 [(set GR8:$rd, (node GR8:$src2, (load addr:$src))),
+                  (implicit SR)]>;
+  def 16rm : I16rm<opcode, (outs GR16:$rd), (ins GR16:$src2, memsrc:$src),
+                   !strconcat(asmstring, "\t$src, $rd"),
+                   [(set GR16:$rd, (node GR16:$src2, (load addr:$src))),
+                    (implicit SR)]>;
+  def 8rn : I8rn<opcode, (outs GR8:$rd), (ins GR8:$src2, indreg:$rs),
+                 !strconcat(asmstring, ".b\t$rs, $rd"), []>;
+  def 16rn : I16rn<opcode, (outs GR16:$rd), (ins GR16:$src2, indreg:$rs),
+                   !strconcat(asmstring, "\t$rs, $rd"), []>;
+  let mayLoad = 1,
+      hasExtraDefRegAllocReq = 1,
+      Constraints = "$rs = $wb, $src2 = $rd" in {
+  def 8rp : I8rp<opcode, (outs GR8:$rd, GR16:$wb), (ins GR8:$src2, postreg:$rs),
+                 !strconcat(asmstring, ".b\t$rs, $rd"), []>;
+  def 16rp : I16rp<opcode, (outs GR16:$rd, GR16:$wb), (ins GR16:$src2, postreg:$rs),
+                   !strconcat(asmstring, "\t$rs, $rd"), []>;
+  }
+  def 8rc : I8rc<opcode, (outs GR8:$rd), (ins GR8:$src2, cg8imm:$imm),
+                 !strconcat(asmstring, ".b\t$imm, $rd"),
+                 [(set GR8:$rd, (node GR8:$src2, cg8imm:$imm)),
+                  (implicit SR)]>;
+  def 16rc : I16rc<opcode, (outs GR16:$rd), (ins GR16:$src2, cg16imm:$imm),
+                 !strconcat(asmstring, "\t$imm, $rd"),
+                 [(set GR16:$rd, (node GR16:$src2, cg16imm:$imm)),
+                  (implicit SR)]>;
+  def 8ri : I8ri<opcode, (outs GR8:$rd), (ins GR8:$src2, i8imm:$imm),
+                 !strconcat(asmstring, ".b\t$imm, $rd"),
+                 [(set GR8:$rd, (node GR8:$src2, imm:$imm)),
+                  (implicit SR)]>;
+  def 16ri : I16ri<opcode, (outs GR16:$rd), (ins GR16:$src2, i16imm:$imm),
+                 !strconcat(asmstring, "\t$imm, $rd"),
+                 [(set GR16:$rd, (node GR16:$src2, imm:$imm)),
+                  (implicit SR)]>;
+  }
+  def 8mr : I8mr<opcode, (outs), (ins memdst:$dst, GR8:$rs),
+                 !strconcat(asmstring, ".b\t$rs, $dst"),
+                 [(store (node (load addr:$dst), GR8:$rs), addr:$dst),
+                  (implicit SR)]>;
+  def 16mr : I16mr<opcode, (outs), (ins memdst:$dst, GR16:$rs),
+                   !strconcat(asmstring, "\t$rs, $dst"),
+                   [(store (node (load addr:$dst), GR16:$rs), addr:$dst),
+                    (implicit SR)]>;
+  def 8mc : I8mc<opcode, (outs), (ins memdst:$dst, cg8imm:$imm),
+                 !strconcat(asmstring, ".b\t$imm, $dst"),
+                 [(store (node (load addr:$dst), (i8 cg8imm:$imm)), addr:$dst),
+                  (implicit SR)]>;
+  def 16mc : I16mc<opcode, (outs), (ins memdst:$dst, cg16imm:$imm),
+                   !strconcat(asmstring, "\t$imm, $dst"),
+                   [(store (node (load addr:$dst), (i16 cg16imm:$imm)), addr:$dst),
+                    (implicit SR)]>;
+  def 8mi : I8mi<opcode, (outs), (ins memdst:$dst, i8imm:$imm),
+                 !strconcat(asmstring, ".b\t$imm, $dst"),
+                 [(store (node (load addr:$dst), (i8 imm:$imm)), addr:$dst),
+                  (implicit SR)]>;
+  def 16mi : I16mi<opcode, (outs), (ins memdst:$dst, i16imm:$imm),
+                   !strconcat(asmstring, "\t$imm, $dst"),
+                   [(store (node (load addr:$dst), (i16 imm:$imm)), addr:$dst),
+                    (implicit SR)]>;
+  def 8mm : I8mm<opcode, (outs), (ins memdst:$dst, memsrc:$src),
+                 !strconcat(asmstring, ".b\t$src, $dst"),
+                 [(store (node (load addr:$dst),
+                               (i8 (load addr:$src))), addr:$dst),
+                  (implicit SR)]>;
+  def 16mm : I16mm<opcode, (outs), (ins memdst:$dst, memsrc:$src),
+                   !strconcat(asmstring, "\t$src, $dst"),
+                   [(store (node (load addr:$dst),
+                                 (i16 (load addr:$src))), addr:$dst),
+                    (implicit SR)]>;
+  def 8mn : I8mn<opcode, (outs), (ins memdst:$dst, indreg:$rs),
+                 !strconcat(asmstring, ".b\t$rs, $dst"), []>;
+  def 16mn : I16mn<opcode, (outs), (ins memdst:$dst, indreg:$rs),
+                   !strconcat(asmstring, "\t$rs, $dst"), []>;
+  def 8mp : I8mp<opcode, (outs), (ins memdst:$dst, postreg:$rs),
+                 !strconcat(asmstring, ".b\t$rs, $dst"), []>;
+  def 16mp : I16mp<opcode, (outs), (ins memdst:$dst, postreg:$rs),
+                   !strconcat(asmstring, "\t$rs, $dst"), []>;
+  }
 }
 
 defm ADD  : Arith<0b0101, "add",  add,  1, []>;
 defm ADDC : Arith<0b0110, "addc", adde, 1, [SR]>;
 defm AND  : Arith<0b1111, "and",  and,  1, []>;
 defm BIS  : Arith<0b1101, "bis",  or,   1, []>;
+defm BIC  : Arith2<0b1100, "bic",  bic,  0, []>;
 defm XOR  : Arith<0b1110, "xor",  xor,  1, []>;
 defm SUB  : Arith<0b1000, "sub",  sub,  0, []>;
 defm SUBC : Arith<0b0111, "subc", sube, 0, [SR]>;
@@ -638,7 +694,7 @@ def RLC16r  : InstAlias<"rlc\t$dst",    (ADDC16rr  GR16:$dst,    GR16:$dst),   0
 def RLC8m   : InstAlias<"rlc.b\t$dst",  (ADDC8mm   memdst:$dst,  memdst:$dst), 0>;
 def RLC16m  : InstAlias<"rlc\t$dst",    (ADDC16mm  memdst:$dst,  memdst:$dst), 0>;
 
-//def DINT : InstAlias<"dint", (BIC16rc SR, 8)>;
+def DINT : InstAlias<"dint", (BIC16rc SR, 8)>;
 def EINT : InstAlias<"eint", (BIS16rc SR, 8)>;
 
 def NOP  : InstAlias<"nop",  (MOV16rc CG, 0)>;
@@ -648,9 +704,9 @@ def CLR16r  : InstAlias<"clr\t$dst",    (MOV16rc   GR16:$dst,    0)>;
 def CLR8m   : InstAlias<"clr.b\t$dst",  (MOV8mc    memdst:$dst,  0)>;
 def CLR16m  : InstAlias<"clr\t$dst",    (MOV16mc   memdst:$dst,  0)>;
 
-//def CLRC : InstAlias<"clrc", (BIC16rc SR, 1)>;
-//def CLRN : InstAlias<"clrn", (BIC16rc SR, 4)>;
-//def CLRZ : InstAlias<"clrz", (BIC16rc SR, 2)>;
+def CLRC : InstAlias<"clrc", (BIC16rc SR, 1)>;
+def CLRN : InstAlias<"clrn", (BIC16rc SR, 4)>;
+def CLRZ : InstAlias<"clrz", (BIC16rc SR, 2)>;
 def SETC : InstAlias<"setc", (BIS16rc SR, 1)>;
 def SETN : InstAlias<"setn", (BIS16rc SR, 4)>;
 def SETZ : InstAlias<"setz", (BIS16rc SR, 2)>;
